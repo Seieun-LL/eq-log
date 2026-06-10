@@ -197,8 +197,8 @@
   </div>
 
   <div class="field">
-    <div class="label"><span class="name">Totalizer FM</span><span class="unit">cu ft &middot; 8 digits</span></div>
-    <input class="inp" id="tot" type="number" inputmode="numeric" step="1" min="0" placeholder="00000000" autocomplete="off">
+    <div class="label"><span class="name">Totalizer FM</span><span class="unit">cu ft &middot; </span></div>
+    <input class="inp" id="tot" type="number" inputmode="numeric" placeholder="Enter totalizer data here" autocomplete="off">
   </div>
 
   <div class="out-wrap">
@@ -209,7 +209,7 @@
 <span class="ph">Tank Level = 00.0 ft</span>
 <span class="ph">Dosing CO2 - No</span>
 <span class="ph">Not Discharging</span>
-<span class="ph">Totalizer FM = 00000000 cu ft</span></pre>
+<span class="ph">Totalizer FM = cu ft</span></pre>
     <div class="note" id="note"></div>
   </div>
   <p class="hint">Zeros are placeholders for fields not recorded yet.</p>
@@ -236,7 +236,7 @@
 
   function fmtPh(v){ if(v===''||isNaN(parseFloat(v)))return null; return parseFloat(v).toFixed(1); }
   function fmtLevel(v){ if(v===''||isNaN(parseFloat(v)))return null; var p=parseFloat(v).toFixed(1).split('.'); return p[0].padStart(2,'0')+'.'+p[1]; }
-  function fmtTot(v){ if(v===''||isNaN(parseInt(v,10)))return null; return String(parseInt(v,10)).padStart(8,'0'); }
+  function fmtTot(v){ if(v === '') return null; return String(v); }
   function radioVal(n){ var el=document.querySelector('input[name="'+n+'"]:checked'); return el?el.value:null; }
 
   function build(){
