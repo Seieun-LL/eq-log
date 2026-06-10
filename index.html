@@ -251,7 +251,7 @@
       L('Tank Level = '+(lvl||'00.0')+' ft',!!lvl,'Tank Level'),
       L('Dosing CO2 - '+(dose||'No'),!!dose,'Dosing CO2'),
       L((disc||'Not Discharging'),!!disc,'Discharge Status'),
-      L('Totalizer FM = '+(tot||'00000000')+' cu ft',!!tot,'Totalizer FM')
+      L('Totalizer FM = '+(tot||'[enter reading]')+' cu ft',!!tot,'Totalizer FM')
     ];
     return {lines:lines,missing:missing};
   }
