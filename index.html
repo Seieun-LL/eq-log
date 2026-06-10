@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="EQ Log">
+<meta name="theme-color" content="#ffffff">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./apple-touch-icon-180.png">
+<title>EQ Tank Log Formatter</title>
+<style>
+  :root{
+    --bg:#ffffff; --text:#000000; --muted:#5f5f5f;
+    --line:#d4d4d4; --line-dark:#000000; --fill:#f4f4f4;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --bar:74px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--sans);
+    line-height:1.5; -webkit-tap-highlight-color:transparent;
+    padding-top:max(16px,env(safe-area-inset-top));
+    padding-bottom:calc(var(--bar) + env(safe-area-inset-bottom) + 12px);
+  }
+  .wrap{max-width:600px;margin:0 auto;padding:0 16px;}
+
+  header{margin-bottom:8px;border-bottom:2px solid var(--line-dark);padding-bottom:12px;}
+  h1{font-size:21px;font-weight:700;letter-spacing:-0.01em;}
+  .sub{color:var(--muted);font-size:13.5px;margin-top:5px;}
+
+  .nojs{border:2px solid var(--line-dark);border-radius:10px;padding:14px 16px;margin:16px 0;background:var(--fill);font-size:14px;line-height:1.55;}
+  .nojs strong{display:block;margin-bottom:4px;}
+
+  .field{padding:16px 0;border-bottom:1px solid var(--line);}
+  .field:first-of-type{padding-top:14px;}
+  .label{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:10px;}
+  .name{font-weight:600;font-size:16px;}
+  .unit{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap;}
+
+  .seg{display:flex;gap:10px;}
+  .seg > *{flex:1;}
+  .seg input{position:absolute;opacity:0;pointer-events:none;}
+  .seg label{
+    display:flex;align-items:center;justify-content:center;min-height:52px;
+    cursor:pointer;text-align:center;
+    border:1.5px solid var(--line-dark);border-radius:10px;
+    background:var(--bg);color:var(--text);font-size:15px;font-weight:500;user-select:none;
+  }
+  .seg input:checked + label{background:var(--text);color:var(--bg);font-weight:700;}
+  .seg input:focus-visible + label{outline:2px solid var(--text);outline-offset:2px;}
+
+  .inp{
+    width:100%;background:var(--bg);color:var(--text);
+    border:1.5px solid var(--line-dark);border-radius:10px;
+    font-family:var(--mono);font-size:18px;min-height:52px;padding:0 14px;
+  }
+  .inp::placeholder{color:var(--muted);}
+  .inp:focus{outline:2px solid var(--text);outline-offset:1px;}
+  select.inp{
+    appearance:none;-webkit-appearance:none;padding-right:42px;
+    background-image:linear-gradient(45deg,transparent 50%,var(--text) 50%),linear-gradient(135deg,var(--text) 50%,transparent 50%);
+    background-position:calc(100% - 20px) 24px,calc(100% - 15px) 24px;
+    background-size:6px 6px,6px 6px;background-repeat:no-repeat;
+  }
+  .inp::-webkit-outer-spin-button,.inp::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+  .inp[type=number]{-moz-appearance:textfield;}
+
+  .out-wrap{margin-top:20px;border:2px solid var(--line-dark);border-radius:12px;overflow:hidden;}
+  .out-top{padding:10px 16px;border-bottom:1px solid var(--line-dark);font-family:var(--mono);font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);}
+  pre#out{font-family:var(--mono);font-size:15px;line-height:2;padding:16px;margin:0;white-space:pre-wrap;word-break:break-word;}
+  pre#out .ph{color:#b0b0b0;}
+  .note{font-family:var(--mono);font-size:12px;color:var(--muted);padding:0 16px 14px;display:none;}
+  .note.show{display:block;}
+
+  /* sticky bottom action bar */
+  .actionbar{
+    position:fixed;left:0;right:0;bottom:0;z-index:10;
+    display:flex;gap:10px;
+    padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+    background:rgba(255,255,255,0.96);
+    -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+    border-top:1.5px solid var(--line-dark);
+  }
+  .actionbar .inner{max-width:600px;margin:0 auto;display:flex;gap:10px;width:100%;}
+  button{font-family:var(--sans);cursor:pointer;border-radius:10px;font-weight:600;}
+  .copy{flex:1;background:var(--text);color:var(--bg);border:1.5px solid var(--text);font-size:16px;font-weight:700;min-height:54px;}
+  .copy:active{opacity:.85;}
+  .copy.done{background:var(--bg);color:var(--text);}
+  .clear{background:var(--bg);color:var(--text);border:1.5px solid var(--line-dark);font-size:15px;padding:0 20px;min-height:54px;}
+  button:focus-visible{outline:2px solid var(--text);outline-offset:2px;}
+
+  .hint{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;margin-top:14px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <noscript>
+    <div class="nojs"><strong>Open this in a browser, not a file preview.</strong>The live entry and Copy button need JavaScript. If you saved this as a Home Screen app, just launch it from the icon.</div>
+  </noscript>
+
+  <header>
+    <h1>EQ Tank Log Formatter</h1>
+    <p class="sub">Enter a 30-minute reading. It formats the same way every time, ready to copy.</p>
+  </header>
+
+  <div class="field">
+    <div class="label"><span class="name">Time</span><span class="unit">military &middot; 30-min</span></div>
+    <select class="inp" id="time" aria-label="Time">
+      <option value="0000">0000</option>
+      <option value="0030">0030</option>
+      <option value="0100">0100</option>
+      <option value="0130">0130</option>
+      <option value="0200">0200</option>
+      <option value="0230">0230</option>
+      <option value="0300">0300</option>
+      <option value="0330">0330</option>
+      <option value="0400">0400</option>
+      <option value="0430">0430</option>
+      <option value="0500">0500</option>
+      <option value="0530">0530</option>
+      <option value="0600">0600</option>
+      <option value="0630">0630</option>
+      <option value="0700">0700</option>
+      <option value="0730">0730</option>
+      <option value="0800">0800</option>
+      <option value="0830">0830</option>
+      <option value="0900">0900</option>
+      <option value="0930">0930</option>
+      <option value="1000">1000</option>
+      <option value="1030">1030</option>
+      <option value="1100">1100</option>
+      <option value="1130">1130</option>
+      <option value="1200">1200</option>
+      <option value="1230">1230</option>
+      <option value="1300">1300</option>
+      <option value="1330">1330</option>
+      <option value="1400">1400</option>
+      <option value="1430">1430</option>
+      <option value="1500">1500</option>
+      <option value="1530">1530</option>
+      <option value="1600">1600</option>
+      <option value="1630">1630</option>
+      <option value="1700">1700</option>
+      <option value="1730">1730</option>
+      <option value="1800">1800</option>
+      <option value="1830">1830</option>
+      <option value="1900">1900</option>
+      <option value="1930">1930</option>
+      <option value="2000">2000</option>
+      <option value="2030">2030</option>
+      <option value="2100">2100</option>
+      <option value="2130">2130</option>
+      <option value="2200">2200</option>
+      <option value="2230">2230</option>
+      <option value="2300">2300</option>
+      <option value="2330">2330</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <div class="label"><span class="name">EQ Tank</span><span class="unit">A or B</span></div>
+    <div class="seg" role="radiogroup" aria-label="EQ Tank">
+      <input type="radio" name="tank" id="tankA" value="A"><label for="tankA">Tank A</label>
+      <input type="radio" name="tank" id="tankB" value="B"><label for="tankB">Tank B</label>
+    </div>
+  </div>
+
+  <div class="field">
+    <div class="label"><span class="name">pH</span><span class="unit">0.0</span></div>
+    <input class="inp" id="ph" type="number" inputmode="decimal" step="0.1" min="0" max="14" placeholder="0.0" autocomplete="off">
+  </div>
+
+  <div class="field">
+    <div class="label"><span class="name">Tank Level</span><span class="unit">ft &middot; 00.0</span></div>
+    <input class="inp" id="level" type="number" inputmode="decimal" step="0.1" min="0" placeholder="00.0" autocomplete="off">
+  </div>
+
+  <div class="field">
+    <div class="label"><span class="name">Dosing CO&#8322;</span><span class="unit">Yes / No</span></div>
+    <div class="seg" role="radiogroup" aria-label="Dosing CO2">
+      <input type="radio" name="dose" id="doseY" value="Yes"><label for="doseY">Yes</label>
+      <input type="radio" name="dose" id="doseN" value="No"><label for="doseN">No</label>
+    </div>
+  </div>
+
+  <div class="field">
+    <div class="label"><span class="name">Discharge Status</span></div>
+    <div class="seg" role="radiogroup" aria-label="Discharge status">
+      <input type="radio" name="disc" id="discY" value="Discharging"><label for="discY">Discharging</label>
+      <input type="radio" name="disc" id="discN" value="Not Discharging"><label for="discN">Not</label>
+    </div>
+  </div>
+
+  <div class="field">
+    <div class="label"><span class="name">Totalizer FM</span><span class="unit">cu ft &middot; 8 digits</span></div>
+    <input class="inp" id="tot" type="number" inputmode="numeric" step="1" min="0" placeholder="00000000" autocomplete="off">
+  </div>
+
+  <div class="out-wrap">
+    <div class="out-top">Field Entry</div>
+    <pre id="out"><span class="ph">Time: 0000</span>
+<span class="ph">Tank - EQ Tank A</span>
+<span class="ph">pH = 0.0</span>
+<span class="ph">Tank Level = 00.0 ft</span>
+<span class="ph">Dosing CO2 - No</span>
+<span class="ph">Not Discharging</span>
+<span class="ph">Totalizer FM = 00000000 cu ft</span></pre>
+    <div class="note" id="note"></div>
+  </div>
+  <p class="hint">Zeros are placeholders for fields not recorded yet.</p>
+</div>
+
+<div class="actionbar">
+  <div class="inner">
+    <button class="copy" id="copy" type="button">Copy entry</button>
+    <button class="clear" id="clear" type="button">Clear</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  var $ = function(id){return document.getElementById(id);};
+  var out=$('out'), note=$('note'), copyBtn=$('copy');
+  var pad2=function(n){return String(n).padStart(2,'0');};
+
+  (function setNow(){
+    var d=new Date(), h=d.getHours(), m=d.getMinutes();
+    if(m<15) m=0; else if(m<45) m=30; else { m=0; h=(h+1)%24; }
+    $('time').value = pad2(h)+pad2(m);
+  })();
+
+  function fmtPh(v){ if(v===''||isNaN(parseFloat(v)))return null; return parseFloat(v).toFixed(1); }
+  function fmtLevel(v){ if(v===''||isNaN(parseFloat(v)))return null; var p=parseFloat(v).toFixed(1).split('.'); return p[0].padStart(2,'0')+'.'+p[1]; }
+  function fmtTot(v){ if(v===''||isNaN(parseInt(v,10)))return null; return String(parseInt(v,10)).padStart(8,'0'); }
+  function radioVal(n){ var el=document.querySelector('input[name="'+n+'"]:checked'); return el?el.value:null; }
+
+  function build(){
+    var tank=radioVal('tank'), dose=radioVal('dose'), disc=radioVal('disc');
+    var ph=fmtPh($('ph').value), lvl=fmtLevel($('level').value), tot=fmtTot($('tot').value);
+    var missing=[];
+    function L(t,ok,lbl){ if(!ok&&lbl) missing.push(lbl); return {text:t,ph:!ok}; }
+    var lines=[
+      L('Time: '+$('time').value,true),
+      L('Tank - EQ Tank '+(tank||'A'),!!tank,'EQ Tank'),
+      L('pH = '+(ph||'0.0'),!!ph,'pH'),
+      L('Tank Level = '+(lvl||'00.0')+' ft',!!lvl,'Tank Level'),
+      L('Dosing CO2 - '+(dose||'No'),!!dose,'Dosing CO2'),
+      L((disc||'Not Discharging'),!!disc,'Discharge Status'),
+      L('Totalizer FM = '+(tot||'00000000')+' cu ft',!!tot,'Totalizer FM')
+    ];
+    return {lines:lines,missing:missing};
+  }
+  function esc(s){return s.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+  function render(){
+    var r=build();
+    out.innerHTML=r.lines.map(function(l){return l.ph?'<span class="ph">'+esc(l.text)+'</span>':esc(l.text);}).join('\n');
+    if(r.missing.length){ note.textContent='Not recorded yet: '+r.missing.join(', '); note.classList.add('show'); }
+    else note.classList.remove('show');
+  }
+  function plainText(){ return build().lines.map(function(l){return l.text;}).join('\n'); }
+
+  copyBtn.addEventListener('click', function(){
+    var text=plainText(), ok=false;
+    function finish(){
+      copyBtn.textContent=ok?'Copied':'Press and hold the entry to copy';
+      copyBtn.classList.toggle('done',ok);
+      clearTimeout(copyBtn._t);
+      copyBtn._t=setTimeout(function(){copyBtn.textContent='Copy entry';copyBtn.classList.remove('done');},1700);
+    }
+    function fallback(){
+      var ta=document.createElement('textarea');
+      ta.value=text; ta.readOnly=false; ta.contentEditable='true';
+      ta.style.position='fixed'; ta.style.top='0'; ta.style.left='0';
+      ta.style.width='1px'; ta.style.height='1px'; ta.style.opacity='0';
+      document.body.appendChild(ta);
+      var range=document.createRange(); range.selectNodeContents(ta);
+      var sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      ta.setSelectionRange(0, text.length);
+      try{ ok=document.execCommand('copy'); }catch(e){}
+      sel.removeAllRanges();
+      document.body.removeChild(ta); finish();
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){ok=true;finish();}, fallback);
+    } else { fallback(); }
+  });
+  $('clear').addEventListener('click', function(){
+    var rs=document.querySelectorAll('input[type="radio"]'); for(var i=0;i<rs.length;i++) rs[i].checked=false;
+    $('ph').value=''; $('level').value=''; $('tot').value=''; render();
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+  var els=document.querySelectorAll('.inp, input[type="radio"]');
+  for(var i=0;i<els.length;i++){ els[i].addEventListener('input',render); els[i].addEventListener('change',render); }
+  render();
+
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){ navigator.serviceWorker.register('./sw.js').catch(function(){}); });
+  }
+})();
+</script>
+</body>
+</html>
